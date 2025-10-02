@@ -1,3 +1,15 @@
+# final binary
+boundless
+*.out
+
+# MacOS
+.DS_Store
+
+# pytest
+env/
+.pytest_cache
+__pycache__
+
 # Prerequisites
 *.d
 
