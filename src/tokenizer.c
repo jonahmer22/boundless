@@ -45,32 +45,6 @@ bool detectWhitespace(){
     }
 }
 
-// skip \n \t ' ' etc
-void skipWhitespace(){
-    while(detectWhitespace()){
-        if(*head == '\n'){
-            startOfLine = head + 1;
-
-            line++;
-        }
-        head++;
-    }
-}
-
-void skipComments(){
-    // detect and skip comment lines
-    if(*head == '/' && *(head + 1) == '/'){   // '//' comments
-        while(*head != '\n'){
-            head++;
-        }
-    }
-    if(*head == '/' && *(head + 1) == '*'){     // '/* ... */' comments
-        while(*head == '*' && *(head + 1) == '/'){
-            head++;
-        }
-    }
-}
-
 bool isAlpha(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
@@ -83,12 +57,64 @@ bool isAlphanumeric(char c) {
     return isAlpha(c) || isDigit(c);
 }
 
+static void skipWhitespaceAroundHead(){
+    while(*head != '\0' && detectWhitespace()){
+        if(*head == '\n'){
+            startOfLine = head + 1;
+            line++;
+        }
+        head++;
+    }
+}
+
+static void skipCommentsAroundHead(){
+    bool consumed = false;
+
+    do{
+        consumed = false;
+        skipWhitespaceAroundHead();
+
+        if(*head == '/' && *(head + 1) == '/'){
+            consumed = true;
+            head += 2;
+            while(*head != '\0' && *head != '\n'){
+                head++;
+            }
+            continue;
+        }
+
+        if(*head == '/' && *(head + 1) == '*'){
+            consumed = true;
+            head += 2;
+            while(*head != '\0'){
+                if(*head == '\n'){
+                    line++;
+                    startOfLine = head + 1;
+                }
+
+                if(*head == '*' && *(head + 1) == '/'){
+                    head += 2;
+                    break;
+                }
+
+                head++;
+            }
+            continue;
+        }
+    }while(consumed);
+}
+
 Token *tokenify(const char *buffer, size_t length){
+    (void)length;
+
     head = trailingHead = startOfLine = (char *)buffer;
+    tokenList = NULL;
+    last = NULL;
+    line = 0;
 
     while(*head != '\0'){  // while the head is not at the end of the buffer (should be EOF)
-        skipWhitespace();
-        skipComments();
+        skipCommentsAroundHead();
+        skipWhitespaceAroundHead();
 
         if(*head == '\0')
             break;
@@ -108,6 +134,10 @@ Token *tokenify(const char *buffer, size_t length){
 
             type = TOKEN_INT;
         }
+        else{
+            head++;
+            continue;
+        }
 
         Token *newToken = createToken(type);
         if(tokenList == NULL){
@@ -122,8 +152,14 @@ Token *tokenify(const char *buffer, size_t length){
 
     trailingHead = head;
     Token *newToken = createToken(TOKEN_EOF);
-    last->next = newToken;
-    last = newToken;
+    if(last != NULL){
+        last->next = newToken;
+        last = newToken;
+    }
+    else{
+        tokenList = newToken;
+        last = newToken;
+    }
 
     return tokenList;
 }
