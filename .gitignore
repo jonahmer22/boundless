@@ -2,6 +2,9 @@
 boundless
 *.out
 
+# misc
+.vscode*
+
 # MacOS
 .DS_Store
 
